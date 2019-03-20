@@ -31,8 +31,14 @@ messages.
 
 ## Proposal
 
-We propose to extend the `PresentationConnection` and the `PresentationReceiver`
-interfaces in Presentation API.
+We propose to extend the
+[PresentationConnection](https://w3c.github.io/presentation-api/#interface-presentationconnection)
+and the
+[PresentationReceiver](https://w3c.github.io/presentation-api/#interface-presentationreceiver)
+interfaces in Presentation API, and manipulate the `HTMLMediaElement#remote`
+attribute (of the
+[RemotePlayback](https://w3c.github.io/remote-playback/#remoteplayback-interface)
+interface).
 
 ### Controller side
 ```
@@ -42,12 +48,10 @@ partial interface PresentationConnection {
 ```
 
 When an `HTMLMediaElement` is set as `controllingMedia`, its `remote` attribute
-(of the
-[RemotePlayback interface](https://w3c.github.io/remote-playback/#remoteplayback-interface))
 will have the following events fired:
-* `connecting` fired when the element is set as `controllingMedia`
-* `connect` fired when `controlledMedia` on the receiver side is also set
-* `disconnect` fired when one of the following happens:
+* `connecting` is fired when the element is set as `controllingMedia`
+* `connect` is fired when `controlledMedia` on the receiver side is also set
+* `disconnect` is fired when one of the following happens:
   * `controllingMedia` is unassigned or reassigned
   * `controlledMedia` is unassigned or reassigned
   * The presentation connection is closed or terminated
@@ -63,12 +67,9 @@ partial interface PresentationReceiver {
 
 When an `HTMLMediaElement` is set as `controlledMedia`, its `remote` attribute
 will have the following events fired:
-* `connecting` fired when the element is set as `controlledMedia`
-* `connect` fired when `controllingMedia` on the controller side is also set
-* `disconnect` fired when one of the following happens:
-  * `controllingMedia` is unassigned or reassigned
-  * `controlledMedia` is unassigned or reassigned
-  * The presentation connection is closed or terminated
+* `connecting` is fired when the element is set as `controlledMedia`
+* `connect` is fired when `controllingMedia` on the controller side is also set
+* `disconnect` fired in the same situations as the controller side
 
 `controlledMedia.remote.state` will reflect these state changes.
 
@@ -88,11 +89,10 @@ Controller page:
   const request = new PresentationRequest('https://example.com/receiver.html');
   const connection = await request.start();
   const videoElement = document.querySelector('#sender-video');
-  connection.controllingMedia = videoElement;
-  // |videoElement.remote.state| is now 'connecting'.
 
-  // Event handlers can be set to be called once both sides are in sync or get
-  // disconnected:
+  videoElement.remote.onconnecting = () => {
+    console.log('connecting...');
+  }
   videoElement.remote.onconnected = () => {
     console.log('connected, playback sync is on.');
     // Pausing the controller-side element now pauses the receiver-side
@@ -100,8 +100,12 @@ Controller page:
     videoElement.pause();
   };
   videoElement.remote.ondisconnected = () => {
-    console.log('disconnected, sync is off.');
+    console.log('disconnected, playback sync is off.');
   };
+
+  connection.controllingMedia = videoElement;
+  // |videoElement.remote.state| is now 'connecting'.
+  // Once |controlledMedia| on the receiver side is set, it becomes 'connected'.
 </script>
 ```
 
@@ -111,11 +115,14 @@ Receiver page:
 
 <script>
   const remoteVideoElement = document.querySelector('#receiver-video');
-  navigator.presentation.receiver.controlledMedia = remoteVideoElement;
-  // |remoteVideoElement.remote.state| is now 'connecting'.
 
   remoteVideoElement.remote.onconnected = () => {
     console.log('connected, playback sync is on.');
   };
+
+  navigator.presentation.receiver.controlledMedia = remoteVideoElement;
+  // |remoteVideoElement.remote.state| is now 'connecting'.
+  // Once |controllingMedia| on the controller side is set, it becomes
+  // 'connected'.
 </script>
 ```
